@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 # Encode e preprocessing
 from sklearn.pipeline import Pipeline
-from sklearn.compose import make_column_transformer
+from sklearn.compose import make_column_transformer, ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
 
 # Modelos de classificação 
@@ -16,6 +16,9 @@ from sklearn import linear_model
 from sklearn.ensemble import RandomForestClassifier
 # Métricas
 from sklearn import metrics
+
+# serialização
+import joblib
 # %%
 # %%
 df = pd.read_csv("data/treino.csv")
@@ -92,7 +95,6 @@ df_analise
 sumario = df_analise.groupby(by=target).agg(["mean","median"]).T
 sumario
 
-
 # %%
 sumario['diff_abs'] = sumario[0] - sumario[1]
 sumario['diff_rel'] = sumario[0]/sumario[1]
@@ -116,9 +118,6 @@ features_importances = (pd.Series(arvore.feature_importances_, index=numericals)
 features_importances['acumulada'] = features_importances[0].cumsum()
 # %%
 features_importances
-
-
-
 
 # %%
 categoricas = X_train.select_dtypes(include='object').columns
@@ -222,72 +221,103 @@ cat_features = ['plano_pagamento','chamados_suporte']
 best_features = num_features + cat_features
 
 # %%
-## One Hot -- categóricas para numéricas
-colunas = X_train[best_features].columns
-one_hot = make_column_transformer((
-    OneHotEncoder(drop = 'if_binary'),
-    cat_features
-    ),
-    remainder = 'passthrough',
-    sparse_threshold=0)
-X_train = one_hot.fit_transform(X_train[best_features])
+# Criando Pipelines
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('cat', OneHotEncoder(drop='if_binary', handle_unknown='ignore'), cat_features),
+        ('num', MinMaxScaler(), num_features)
+    ],
+    remainder='drop'
+)
+# %%
+# Pipeline Regressão Logística
+pipeline_reg = Pipeline([
+    ('preprocessor', preprocessor),
+    ('classifier', linear_model.LogisticRegression(
+        penalty='l2',
+        C=1.0,
+        class_weight='balanced',
+        random_state=42,
+        max_iter=1000
+    ))
+])
+# %%
+# Pipeline Random Forest
+pipeline_rf = Pipeline([
+    ('preprocessor', preprocessor),
+    ('classifier', RandomForestClassifier(
+        n_estimators=100,
+        max_depth=10,
+        min_samples_split=50,
+        min_samples_leaf=20,
+        max_features='sqrt',
+        class_weight='balanced',
+        random_state=42,
+        n_jobs=-1
+    ))
+])
 
-X_train= pd.DataFrame(X_train, columns=one_hot.get_feature_names_out(colunas))
-X_train.head()
+# %%
+# Treinamento - Regressão Logistica
+pipeline_reg.fit(X_train[best_features], y_train)
+# %%
+# Predições
+y_train_predict_reg = pipeline_reg.predict(X_train[best_features])
+y_train_proba_reg = pipeline_reg.predict_proba(X_train[best_features])[:,1]
+
+y_test_predict_reg = pipeline_reg.predict(X_test[best_features])
+y_test_proba_reg = pipeline_reg.predict_proba(X_test[best_features])[:,1]
+# %%
+# Métricas
+acc_train_reg = metrics.accuracy_score(y_train, y_train_predict_reg)
+auc_train_reg = metrics.roc_auc_score(y_train, y_train_proba_reg)
+
+acc_test_reg = metrics.accuracy_score(y_test, y_test_predict_reg)
+auc_test_reg = metrics.roc_auc_score(y_test, y_test_proba_reg)
+# %%
+print(f"Acurácia Treino: {acc_train_reg:.4f}")
+print(f"AUC Treino: {auc_train_reg:.4f}")
+print(f"Predições positivas treino: {y_train_predict_reg.sum()} de {len(y_train)} ({y_train_predict_reg.mean():.2%})")
+print(f"Taxa real churn treino: {y_train.mean():.2%}")
+# %%
+print(f"Acurácia Teste: {acc_test_reg:.4f}")
+print(f"AUC Teste: {auc_test_reg:.4f}")
+print(f"Predições positivas teste: {y_test_predict_reg.sum()} de {len(y_test)} ({y_test_predict_reg.mean():.2%})")
+print(f"Taxa real churn teste: {y_test.mean():.2%}")
 
 # %%
+# Treinamento - Random Forest
+pipeline_rf.fit(X_train[best_features], y_train)
+
+# Predições
+y_train_predict_rf = pipeline_rf.predict(X_train[best_features])
+y_train_proba_rf = pipeline_rf.predict_proba(X_train[best_features])[:,1]
+
+y_test_predict_rf = pipeline_rf.predict(X_test[best_features])
+y_test_proba_rf = pipeline_rf.predict_proba(X_test[best_features])[:,1]
 # %%
-normalizacao = MinMaxScaler()
-X_train = normalizacao.fit_transform(X_train)
+# Métricas
+acc_train_rf = metrics.accuracy_score(y_train, y_train_predict_rf)
+auc_train_rf = metrics.roc_auc_score(y_train, y_train_proba_rf)
+
+acc_test_rf = metrics.accuracy_score(y_test, y_test_predict_rf)
+auc_test_rf = metrics.roc_auc_score(y_test, y_test_proba_rf)
 # %%
-pd.DataFrame(X_train)
+print(f"Acurácia Treino: {acc_train_rf:.4f}")
+print(f"AUC Treino: {auc_train_rf:.4f}")
+print(f"Predições positivas treino: {y_train_predict_rf.sum()} de {len(y_train)} ({y_train_predict_rf.mean():.2%})")
+print(f"Taxa real churn treino: {y_train.mean():.2%}")
 # %%
-## Fazendo na base de teste
-X_test = one_hot.transform(X_test[best_features])
-X_test = pd.DataFrame(X_test, columns=one_hot.get_feature_names_out(colunas))
-X_test.head()
-# %%
-X_test = normalizacao.transform(X_test)
-# %%
-reg = linear_model.LogisticRegression(penalty=None,
-                                      random_state=42,
-                                      max_iter=1000000)
-reg.fit(X_train,y_train)
+print(f"Acurácia Teste: {acc_test_rf:.4f}")
+print(f"AUC Teste: {auc_test_rf:.4f}")
+print(f"Predições positivas teste: {y_test_predict_rf.sum()} de {len(y_test)} ({y_test_predict_rf.mean():.2%})")
+print(f"Taxa real churn teste: {y_test.mean():.2%}")
 
 # %%
-rf = RandomForestClassifier(random_state=42,
-                            n_jobs=2)
-rf.fit(X_train,y_train)
-# %%
-y_train_predict = reg.predict(X_train)
-y_train_proba = reg.predict_proba(X_train)[:,1]
+# Export
+joblib.dump(pipeline_reg, "pipeline_churn_reg.joblib")
+print("\n✓ Pipeline Regressão Logística salvo em: pipeline_churn_reg.joblib")
 
-acc_train = metrics.accuracy_score(y_train,y_train_predict)
-auc_train = metrics.roc_auc_score(y_train, y_train_proba)
-
-print("Acurácia Treino",acc_train)
-print("AUC Treino",auc_train)
-# %%
-y_train_predict = rf.predict(X_train)
-y_train_proba = rf.predict_proba(X_train)[:,1]
-
-acc_train = metrics.accuracy_score(y_train,y_train_predict)
-auc_train = metrics.roc_auc_score(y_train, y_train_proba)
-
-print("Acurácia Treino",acc_train)
-print("AUC Treino",auc_train)
-# %%
-y_test_predict = rf.predict(X_test)
-y_test_proba = rf.predict_proba(X_test)[:,1]
-
-acc_test = metrics.accuracy_score(y_test,y_test_predict)
-auc_test = metrics.roc_auc_score(y_test, y_test_proba)
-
-print("Acurácia Treino",acc_test)
-print("AUC Treino",auc_test)
-# %%
-y_test_predict.sum()
-y_train_predict.sum()
-# %%
-df.head()
+joblib.dump(pipeline_rf, "pipeline_churn_rf.joblib")
+print("✓ Pipeline Random Forest salvo em: pipeline_churn_rf.joblib")
 # %%
