@@ -55,7 +55,7 @@ def predict(data: ClienteInput):
         )
 
     # ordem EXATA usada no treino
-    feature_order = schema["feature_order"]
+    feature_order = schema["required_features"]
 
     X = pd.DataFrame([data_dict])[feature_order]
 
