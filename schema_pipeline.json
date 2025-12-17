@@ -1,0 +1,27 @@
+{
+  "model_name": "churn_rf",
+  "model_version": "1.0.0",
+  "target": "churned",
+  "numerical_features": [
+    "taxa_skip_musica",
+    "taxa_musicas_unicas",
+    "notificacoes_clicadas",
+    "horas_semanais",
+    "tempo_medio_sessao",
+    "idade"
+  ],
+  "categorical_features": [
+    "plano_pagamento",
+    "chamados_suporte"
+  ],
+  "required_features": [
+    "plano_pagamento",
+    "chamados_suporte",
+    "taxa_skip_musica",
+    "taxa_musicas_unicas",
+    "notificacoes_clicadas",
+    "horas_semanais",
+    "tempo_medio_sessao",
+    "idade"
+  ]
+}
