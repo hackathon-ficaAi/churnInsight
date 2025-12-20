@@ -8,7 +8,7 @@ import seaborn as sns
 from sklearn.pipeline import Pipeline
 from sklearn.compose import make_column_transformer, ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
-
+from feature_engine import discretisation
 # Modelos de classificação 
 from sklearn.model_selection import train_test_split
 from sklearn import tree
@@ -21,17 +21,14 @@ from sklearn import metrics
 import joblib
 # %%
 # %%
-df = pd.read_csv("data/treino.csv")
+url = 'https://raw.githubusercontent.com/hackathon-ficaAi/churnInsight/refs/heads/main/data/treino.csv'
+df = pd.read_csv(url)
 df.head()
 # %%
 categoricals = ['tipo_assinatura','plano_pagamento','metodo_pagamento','chamados_suporte','data_inscricao','localizacao']
 numericals = list(set(df.columns) - set(categoricals))
 # %%
-
-# %%
 df.info()
-#%%
-
 # %%
 df['data_inscricao'].value_counts().sort_index()
 # %%
@@ -49,6 +46,10 @@ oot = df[df['mes_ano_inscricao'] >= (ultimo_mes - 3)].copy()
 oot
 # %%
 df_train = df[df['mes_ano_inscricao'] < (ultimo_mes - 3)].copy()
+df_train
+# %%
+# Criando uma coluna onde se o cliente clicou em pelo menos 1 notificação retorna 1, caso contrario 0
+df_train['tem_notificacao'] = (df_train['notificacoes_clicadas'] > 0).astype(int)
 df_train
 # %%
 target = 'churned'
@@ -69,13 +70,6 @@ numericals = [
 ]
 
 X,y= df_train[categoricals + numericals], df_train[target]
-
-# %%
-
-# %%
-
-# %%
-
 # %%
 X_train, X_test, y_train, y_test = train_test_split(X,y,
                                                     random_state=42,
@@ -143,15 +137,10 @@ def resumo_categorica(var,df=df_cat, target=target):
 resumo_categorica('tipo_assinatura')
 # %%
 resumo_categorica('plano_pagamento')
-
 # %%
 resumo_categorica('metodo_pagamento')
 # %%
 resumo_categorica('chamados_suporte')
-
-# %%
-
-
 # %%
 from scipy.stats import chi2_contingency
 
@@ -214,10 +203,20 @@ imp_cat_grouped = (
 imp_cat_grouped['acumulada'] = imp_cat_grouped[0].cumsum()
 imp_cat_grouped
 # %%
-num_features = ['taxa_skip_musica','taxa_musicas_unicas',
-                 'notificacoes_clicadas','horas_semanais',
-                 'tempo_medio_sessao','idade']
-cat_features = ['plano_pagamento','chamados_suporte']
+num_features = [
+    'taxa_skip_musica',
+    'taxa_musicas_unicas',
+    'notificacoes_clicadas',
+    'horas_semanais',
+    'tempo_medio_sessao',
+    'idade'
+]
+
+cat_features = [
+    'plano_pagamento',
+    'chamados_suporte',
+    'tem_notificacao'  # nova flag
+]
 best_features = num_features + cat_features
 
 # %%
@@ -230,10 +229,53 @@ preprocessor = ColumnTransformer(
     remainder='drop'
 )
 # %%
+from feature_engine import encoding
+from feature_engine.encoding import RareLabelEncoder, OneHotEncoder
+from feature_engine.outliers import Winsorizer
+from feature_engine.transformation import YeoJohnsonTransformer
+from sklearn.preprocessing import StandardScaler
+
+# %%
+# Agrupa categorias raras em 'Rare', reduzindo dimensionalidade
+rare_encoder = RareLabelEncoder(
+    variables=['plano_pagamento', 'chamados_suporte'],
+    tol=0.05,
+    n_categories=10
+)
+# %%
+# transformação que reduz assimetria dos dados, deixando uma distribuição mais simétrica
+yeo_johnson = YeoJohnsonTransformer(variables=num_features)
+
+# %%
+# substitui outliers por percentis
+winsorizer = Winsorizer(
+    variables=num_features,
+    capping_method='quantiles',
+    tail='both',
+    fold=0.05
+)
+
+onehot = OneHotEncoder(
+    variables=cat_features,
+    ignore_format=True,
+)
+# %%
+tree_discretization = discretisation.DecisionTreeDiscretiser(variables=num_features,
+                                                             cv=3,
+                                                             regression=False,
+                                                             bin_output='bin_number',
+                                                             )
+# %%
 # Pipeline Regressão Logística
-pipeline_reg = Pipeline([
-    ('preprocessor', preprocessor),
-    ('classifier', linear_model.LogisticRegression(
+pipeline_reg = Pipeline(steps=[
+#    ('preprocessor', preprocessor),
+#    ('discretização', tree_discretization),
+    ('rare_labels', rare_encoder),
+    ('yeo_johnson', yeo_johnson),
+    ('winsorizer', winsorizer),    
+    ('OneHot', onehot),
+    ('scaler', StandardScaler()),
+    ('modelo', linear_model.LogisticRegression(
         penalty='l2',
         C=1.0,
         class_weight='balanced',
@@ -244,7 +286,13 @@ pipeline_reg = Pipeline([
 # %%
 # Pipeline Random Forest
 pipeline_rf = Pipeline([
-    ('preprocessor', preprocessor),
+#    ('preprocessor', preprocessor),
+#    ('discretização', tree_discretization),
+    ('rare_labels', rare_encoder),
+    ('yeo_johnson', yeo_johnson),
+    ('winsorizer', winsorizer),    
+    ('OneHot', onehot),
+    ('scaler', StandardScaler()),
     ('classifier', RandomForestClassifier(
         n_estimators=100,
         max_depth=10,
