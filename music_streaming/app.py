@@ -5,15 +5,19 @@ import joblib
 import json
 from pathlib import Path
 
-# Load schema
-BASE_DIR = Path(__file__).resolve().parent
+# Caminhos
 
-with open(BASE_DIR / "schema_pipeline.json", "r", encoding="utf-8") as f:
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR / "models" / "pipeline_churn_rf.joblib"
+SCHEMA_PATH = BASE_DIR / "schema" / "schema_pipeline.json"
+
+# Load schema
+with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
     schema = json.load(f)
 
 
 # Load pipeline (preprocess + model)
-pipeline = joblib.load("pipeline_churn_rf.joblib")
+pipeline = joblib.load(MODEL_PATH)
 
 app = FastAPI(title="Churn Prediction API")
 
