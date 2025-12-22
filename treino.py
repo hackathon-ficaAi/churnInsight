@@ -49,7 +49,7 @@ df_train = df[df['mes_ano_inscricao'] < (ultimo_mes - 3)].copy()
 df_train
 # %%
 # Criando uma coluna onde se o cliente clicou em pelo menos 1 notificação retorna 1, caso contrario 0
-df_train['tem_notificacao'] = (df_train['notificacoes_clicadas'] > 0).astype(int)
+df_train['clicou_notificacao'] = (df_train['notificacoes_clicadas'] > 0).astype(int)
 df_train
 # %%
 target = 'churned'

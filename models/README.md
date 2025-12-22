@@ -18,5 +18,13 @@ SEMMA é framework de Data Mining desenvolvido pela SAS Institute criado para fa
 - Combinação
 
 ## Model
+- Modelos Estatísticos
+- Modelos de Árvore
+- Modelos de Vetor de suporte
+- Redes Neurais
 
 ## Assess
+- Métricas de Ajuste
+- Decisão
+- Comparação
+- Serialização
