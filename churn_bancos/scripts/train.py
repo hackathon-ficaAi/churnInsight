@@ -1,8 +1,9 @@
 # %%
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn import model_selection, tree, linear_model,metrics
+from sklearn import model_selection, tree, linear_model, metrics, pipeline
 from feature_engine import encoding, discretisation
+import joblib
 # %%
 # 
 url = 'https://raw.githubusercontent.com/hackathon-ficaAi/churnInsight/refs/heads/main/churn_bancos/data/churn_bancos.csv'
@@ -184,38 +185,54 @@ best_features = best_features_cat + best_features_num
 best_features
 # %%
 # MODIFY
-onehot = encoding.OneHotEncoder(
-    variables=best_features_cat,
-    drop_last=False
+tree_discretiziation = discretisation.DecisionTreeDiscretiser(
+    variables=best_features_num,
+    regression=False,
+    bin_output='bin_number',
+    cv=3
 )
 
-X_train_enc = onehot.fit_transform(X_train[best_features])
-X_train_enc
+onehot = encoding.OneHotEncoder(
+    variables=best_features,
+    ignore_format=True,
+    drop_last=True
+)
+
 # %%
 # MODEL -- Regressão Logistica
 
 reg = linear_model.LogisticRegression(penalty=None,
                                       random_state=42)
-reg.fit(X_train_enc,y_train)
 
+pipeline_reg = pipeline.Pipeline(
+    steps=[
+        ('Discretizar',tree_discretiziation),
+        ('OneHot',onehot),
+        ('Model',reg)
+    ]
+)
+
+pipeline_reg.fit(X_train[best_features],y_train)
 # %%
-y_train_predict = reg.predict(X_train_enc)
-y_train_proba = reg.predict_proba(X_train_enc)[:,1]
+y_train_predict = pipeline_reg.predict(X_train[best_features])
+y_train_proba = pipeline_reg.predict_proba(X_train[best_features])[:,1]
 # %%
 # ASSESS
 acc_train = metrics.accuracy_score(y_train, y_train_predict)
 auc_train = metrics.roc_auc_score(y_train,y_train_proba)
 print("Acurácio Treino:", acc_train)
 print("AUC Teste:",auc_train)
+
 # %%
-X_test_enc = onehot.transform(X_test[best_features])
-X_test_enc
-# %%
-y_test_predict = reg.predict(X_test_enc)
-y_test_proba = reg.predict_proba(X_test_enc)[:,1]
+y_test_predict = pipeline_reg.predict(X_test[best_features])
+y_test_proba = pipeline_reg.predict_proba(X_test[best_features])[:,1]
 
 acc_test = metrics.accuracy_score(y_test, y_test_predict)
 auc_test = metrics.roc_auc_score(y_test,y_test_proba)
 print("Acurácio Teste:", acc_test)
 print("AUC Teste:",auc_test)
+# %%
+# Export
+joblib.dump(pipeline_reg, "..\models\pipeline_churn_reg.joblib")
+print("\n✓ Pipeline Regressão Logística salvo em: ..\models\pipeline_churn_reg.joblib")
 # %%
