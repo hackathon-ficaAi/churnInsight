@@ -38,7 +38,7 @@ churn_bancos/
 │       └── notebook.ipynb
 │
 ├── schemas/               # Esquemas de entrada/saída da API (Pydantic)
-│   └── churn_schema.py
+│   └── churn_schema.json
 │
 ├── scripts/               # Scripts executáveis (CLI / batch)
 │   ├── test/
