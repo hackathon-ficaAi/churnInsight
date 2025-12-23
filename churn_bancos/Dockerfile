@@ -1,15 +1,22 @@
 FROM python:3.11
 
+# Diretório de trabalho dentro do container
 WORKDIR /app
 
+# Copia dependências primeiro (melhor cache)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY pipeline_churn_rf.joblib .
+# Copia código da aplicação
 COPY app.py .
-COPY schema_pipeline.json .
+COPY config.py .
 
+# Copia pastas necessárias
+COPY models/ ./models/
+COPY schema/ ./schema/
+COPY services/ ./services/
+COPY utils/ ./utils/
 
 EXPOSE 8000
 
-# CMD ["uvicorn", "app:app","--reload", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
