@@ -2,7 +2,7 @@
     "model_name":"churn_reg",
     "model_version": "1.0.0",
     "target": "churned",
-    "required__features":[
+    "required_features":[
         "pais" ,
         "genero",
         "idade",

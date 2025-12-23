@@ -45,7 +45,7 @@ def predict(data: ClientInput):
     data_dict = data.dict()
 
     # validação de features
-    missing = set(schema["required_features"] - set(data_dict.keys()))
+    missing = set(schema["required_features"]) - set(data_dict.keys())
     if missing:
         raise HTTPException(
             status_code=400,
@@ -58,7 +58,7 @@ def predict(data: ClientInput):
     # Garantindo a ordem exata usada no treino
     feature_order = schema["required_features"]
 
-    X = pd.DataFrame(['data_dict'])[feature_order]
+    X = pd.DataFrame([data_dict])[feature_order]
 
     # aplicando o modelo
     proba = pipeline.predict_proba(X)[0,1]
