@@ -1,0 +1,14 @@
+{
+    "model_name":"churn_reg",
+    "model_version": "1.0.0",
+    "target": "churned",
+    "required__features":[
+        "pais" ,
+        "genero",
+        "idade",
+        "num_produtos",
+        "membro_ativo",
+        "saldo",
+        "salario_estimado"
+    ]
+}
