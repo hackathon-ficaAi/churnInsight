@@ -1,4 +1,19 @@
-# ChurnInsight — Previsão de Cancelamento de Clientes
+
+<h1 align="center">
+  ChurnInsight — Churn Prediction API
+</h1>
+
+<div align="center">
+
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.125.0-009688)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
+![Static Badge](https://img.shields.io/badge/status-em_desenvolvilmento-yellow)
+![ML](https://img.shields.io/badge/machine%20learning-scikit--learn-orange)
+
+</div>
+
+## Previsão de Cancelamento de Clientes
 Descrição do projeto
 
 O desafio do ChurnInsight consiste em criar uma solução que preveja se um cliente está propenso a cancelar um serviço (churn).
@@ -35,89 +50,28 @@ aumentar o tempo médio de relacionamento (lifetime value).
 
 Mesmo modelos simples já trazem valor, pois ajudam as empresas a direcionar esforços onde há maior risco de perda.
 
-## Estrutura do Projeto
-```text
-churn_bancos/
-├── .gitignore
-├── app.py                 # Ponto de entrada da API (FastAPI)
-├── config.py              # Configurações globais do projeto
-├── Dockerfile             # Build da imagem Docker da aplicação
-├── README.md              # Documentação do projeto
-├── requirements.txt       # Dependências do projeto
-│
-├── data/                  # Dados utilizados no projeto
-│   └── churn_bancos.csv
-│
-├── models/                # Modelos treinados e pipelines serializados
-│   ├── pipeline_churn_rf.joblib
-│   └── pipeline_churn_reg.joblib
-│
-├── notebooks/             # Análises exploratórias (EDA)
-│   └── eda_churn.ipynb
-│
-├── schemas/               # Esquemas de entrada/saída da API (Pydantic)
-│   └── churn_schema.py
-│
-├── scripts/               # Scripts executáveis (CLI / batch)
-│   ├── test/
-│   │   └── test_pipeline.py
-│   └── train/
-│       └── train_model.py
-│
-├── services/              # Lógica principal da aplicação
-│   ├── predict.py         # Inferência com modelo treinado
-│   └── train.py           # Treino e validação reutilizáveis
-│
-└── utils/                 # Funções auxiliares (helpers, métricas, logs)
-    ├── io.py
-    ├── logger.py
-    └── metrics.py
-```
-## FastAPI e como executar
+## Tecnologias utilizadas
 
-Para fazer a comunicação com o back-end no projeto foi utilizado FastAPI, um moderno e rápido (alta performance) framework web para construção de APIs com Python, baseado nos type hints padrões do Python.
+- **Python 3.11** — Linguagem principal
+- **FastAPI** — API para disponibilização do modelo
+- **Docker** — Containerização da aplicação
+- **Scikit-learn** — Modelagem e pipelines de ML
+- **Pandas / NumPy** — Manipulação e análise de dados
+- **Matplotlib / Seaborn** — Gerar gráficos para visualização e análise de dados
+- **Feature-engine** — Engenharia de features e pré-processamento
 
-### Executando a API com Docker
-Por enquanto o projeto só possui API disponível na pasta `music_streaming`, então utilize essa pasta como destino,
-porém suportara múltiplos datasets (ex: music_streaming, churn_bancos),
-cada um com sua própria API e modelo treinado.
+## Documentação do projeto
 
-Cada pasta contém:
+Este repositório é organizado de forma modular.  
+Cada parte do projeto possui sua própria documentação detalhada.
 
-- um Dockerfile
+- 📊 **Datasets e APIs**
+  - [`churn_bancos/README.md`](./churn_bancos/README.md) — Caso de churn bancário
+  - [`music_streaming/README.md`](./music_streaming/README.md) — Caso de churn em streaming
 
-- um app.py
+- 🤖 **Modelos de Machine Learning**
+  - [`scripts/README.md`](./scripts/README.md) — Metodologia SEMMA, treino, validação e pipelines
 
-- um modelo treinado em models/
+- 🧪 **Análises exploratórias**
+  - Documentadas diretamente nos notebooks em `notebooks/`
 
-Estando na pasta raiz `churnInsight`, escolha a pasta do dataset desejado como contexto do build.
-
-*Exemplo*: `music_streaming`
-```bash
-docker build --no-cache -t churn-ml-api ./music_streaming
-```
-
-Após isso basta executar o container com:
-
-```bash
-docker run -p 8000:8000 churn-ml-api
-```
-A API estará disponível em:
-
-```text
-http://localhost:8000/docs
-```
-### Exemplo de Requisição via POST
-Em `POST /predict` pode fazer uma requisição com a estrutura exemplo abaixo:
-```json
-{
-  "plano_pagamento": "anual",
-  "chamados_suporte": "nenhum",
-  "idade": 71,
-  "horas_semanais": 23.510865,
-  "tempo_medio_sessao": 3.436433,
-  "taxa_skip_musica": 0.01,
-  "taxa_musicas_unicas": 0.77,
-  "notificacoes_clicadas": 129
-} 
-```
