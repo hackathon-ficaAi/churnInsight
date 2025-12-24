@@ -1,7 +1,7 @@
 # %%
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn import model_selection, tree, linear_model, metrics, pipeline
+from sklearn import model_selection, tree, linear_model, naive_bayes, ensemble, metrics, pipeline
 from feature_engine import encoding, discretisation
 import joblib
 # %%
@@ -201,38 +201,82 @@ onehot = encoding.OneHotEncoder(
 # %%
 # MODEL -- Regressão Logistica
 
-reg = linear_model.LogisticRegression(penalty=None,
-                                      random_state=42)
+#model = linear_model.LogisticRegression(penalty=None,
+#                                      random_state=42)
+#model = naive_bayes.BernoulliNB()
 
-pipeline_reg = pipeline.Pipeline(
+#model = ensemble.RandomForestClassifier(random_state=42,
+#                                        n_jobs=2
+#                                        )
+model = ensemble.AdaBoostClassifier(random_state=42)
+
+params = {
+    "n_estimators":[50,100,200,500],
+    "learning_rate":[0.01,0.02,0.05,0.10,0.20,0.30]
+}
+
+grid = model_selection.GridSearchCV(model, 
+                                    params, 
+                                    cv=3, 
+                                    scoring='roc_auc',
+                                    verbose=4,
+                                    error_score='raise')
+
+model_pipeline = pipeline.Pipeline(
     steps=[
         ('Discretizar',tree_discretiziation),
         ('OneHot',onehot),
-        ('Model',reg)
+        ('Grid',grid)
     ]
 )
 
-pipeline_reg.fit(X_train[best_features],y_train)
-# %%
-y_train_predict = pipeline_reg.predict(X_train[best_features])
-y_train_proba = pipeline_reg.predict_proba(X_train[best_features])[:,1]
-# %%
-# ASSESS
-acc_train = metrics.accuracy_score(y_train, y_train_predict)
-auc_train = metrics.roc_auc_score(y_train,y_train_proba)
-print("Acurácio Treino:", acc_train)
-print("AUC Teste:",auc_train)
 
-# %%
-y_test_predict = pipeline_reg.predict(X_test[best_features])
-y_test_proba = pipeline_reg.predict_proba(X_test[best_features])[:,1]
+import mlflow
 
-acc_test = metrics.accuracy_score(y_test, y_test_predict)
-auc_test = metrics.roc_auc_score(y_test,y_test_proba)
-print("Acurácio Teste:", acc_test)
-print("AUC Teste:",auc_test)
+mlflow.set_tracking_uri("http://127.0.0.1:5000/")
+mlflow.set_experiment(experiment_id=1)
+
+with mlflow.start_run(run_name=model.__str__()):
+    mlflow.sklearn.autolog()
+
+    model_pipeline.fit(X_train[best_features],y_train)
+
+    y_train_predict = model_pipeline.predict(X_train[best_features])
+    y_train_proba = model_pipeline.predict_proba(X_train[best_features])[:,1]
+
+    # ASSESS
+    acc_train = metrics.accuracy_score(y_train, y_train_predict)
+    auc_train = metrics.roc_auc_score(y_train,y_train_proba)
+    roc_train = metrics.roc_curve(y_train, y_train_proba)
+    print("Acurácia Treino:", acc_train)
+    print("AUC Teste:",auc_train)
+
+    y_test_predict = model_pipeline.predict(X_test[best_features])
+    y_test_proba = model_pipeline.predict_proba(X_test[best_features])[:,1]
+
+    acc_test = metrics.accuracy_score(y_test, y_test_predict)
+    auc_test = metrics.roc_auc_score(y_test,y_test_proba)
+    roc_test = metrics.roc_curve(y_test, y_test_proba)
+    print("Acurácia Teste:", acc_test)
+    print("AUC Teste:",auc_test)
+
+    mlflow.log_metrics({
+        "acc_train":acc_train,
+        "auc_train":auc_train,
+        "acc_test": acc_test,
+        "auc_test": auc_test
+    })
+# %%
+plt.plot(roc_train[0],roc_train[1])
+plt.plot(roc_test[0],roc_test[1])
+plt.grid(True)
+plt.title("Curva ROC")
+plt.legend([
+    f"Treino: {100*auc_train:.2f}",
+    f"Teste: {100*auc_test:.2f}"
+])
 # %%
 # Export
-joblib.dump(pipeline_reg, "..\models\pipeline_churn_reg.joblib")
-print("\n✓ Pipeline Regressão Logística salvo em: ..\models\pipeline_churn_reg.joblib")
+joblib.dump(model_pipeline, "..\models\model_pipeline.joblib")
+print("\n✓ Pipeline Regressão Logística salvo em: ..\models\model_pipeline.joblib")
 # %%
