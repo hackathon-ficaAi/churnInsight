@@ -1,8 +1,11 @@
 # %%
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn import model_selection, tree, linear_model, metrics, pipeline
-from feature_engine import encoding, discretisation
+import seaborn as sns
+from sklearn import model_selection, tree, linear_model, naive_bayes, ensemble, metrics, pipeline
+from xgboost import XGBClassifier
+from feature_engine import encoding, discretisation, outliers, transformation
 import joblib
 # %%
 # 
@@ -185,7 +188,7 @@ best_features = best_features_cat + best_features_num
 best_features
 # %%
 # MODIFY
-tree_discretiziation = discretisation.DecisionTreeDiscretiser(
+tree_discretization = discretisation.DecisionTreeDiscretiser(
     variables=best_features_num,
     regression=False,
     bin_output='bin_number',
@@ -199,40 +202,120 @@ onehot = encoding.OneHotEncoder(
 )
 
 # %%
+# log1p
+log1p = transformation.LogCpTransformer(variables=['saldo'],C=1)
+# %%
 # MODEL -- Regressão Logistica
 
-reg = linear_model.LogisticRegression(penalty=None,
-                                      random_state=42)
+#model = linear_model.LogisticRegression(penalty=None,
+#                                      random_state=42)
+#model = naive_bayes.BernoulliNB()
 
-pipeline_reg = pipeline.Pipeline(
+#model = ensemble.RandomForestClassifier(random_state=42,
+#                                        n_jobs=2
+#                                        )
+# model = ensemble.AdaBoostClassifier(random_state=42)
+
+model = XGBClassifier(random_state = 42)
+
+params = {
+    "n_estimators":[50,100,200,500],
+    "learning_rate":[0.01,0.02,0.05,0.10,0.20,0.30]
+}
+
+params_rf = {
+    "n_estimators":[100,200,500,1000],
+    "criterion": ['gini', 'entropy', 'log_loss'],
+    "min_samples_leaf": [15,20,25,30,40,50],
+    "max_depth": [3,6,10,15,20],
+    "class_weight":['balanced','balanced_subsample']
+}
+
+params_xgb = {
+    "n_estimators":[50,100,200,500,1000],
+    "max_depth": [3,5,10,15,20],
+    "learning_rate":[0.01,0.02,0.05,0.10,0.15,0.20,0.30]
+}
+
+grid = model_selection.GridSearchCV(model, 
+                                    params_xgb, 
+                                    cv=model_selection.StratifiedKFold(n_splits=5), 
+                                    scoring='recall',
+                                    verbose=4,
+                                    error_score='raise')
+
+model_pipeline = pipeline.Pipeline(
     steps=[
-        ('Discretizar',tree_discretiziation),
+        ('log', log1p),
+        ('Discretizar',tree_discretization),
         ('OneHot',onehot),
-        ('Model',reg)
+        ('Grid',grid)
     ]
 )
 
-pipeline_reg.fit(X_train[best_features],y_train)
-# %%
-y_train_predict = pipeline_reg.predict(X_train[best_features])
-y_train_proba = pipeline_reg.predict_proba(X_train[best_features])[:,1]
-# %%
-# ASSESS
-acc_train = metrics.accuracy_score(y_train, y_train_predict)
-auc_train = metrics.roc_auc_score(y_train,y_train_proba)
-print("Acurácio Treino:", acc_train)
-print("AUC Teste:",auc_train)
 
-# %%
-y_test_predict = pipeline_reg.predict(X_test[best_features])
-y_test_proba = pipeline_reg.predict_proba(X_test[best_features])[:,1]
+import mlflow
 
-acc_test = metrics.accuracy_score(y_test, y_test_predict)
-auc_test = metrics.roc_auc_score(y_test,y_test_proba)
-print("Acurácio Teste:", acc_test)
-print("AUC Teste:",auc_test)
+mlflow.set_tracking_uri("http://127.0.0.1:5000/")
+mlflow.set_experiment(experiment_id=1)
+
+with mlflow.start_run(run_name=model.__str__()):
+    mlflow.sklearn.autolog()
+
+    model_pipeline.fit(X_train[best_features],y_train)
+
+    y_train_predict = model_pipeline.predict(X_train[best_features])
+    y_train_proba = model_pipeline.predict_proba(X_train[best_features])[:,1]
+
+    # ASSESS
+    acc_train = metrics.accuracy_score(y_train, y_train_predict)
+    auc_train = metrics.roc_auc_score(y_train,y_train_proba)
+    roc_train = metrics.roc_curve(y_train, y_train_proba)
+    recall_train = metrics.recall_score(y_train,y_train_predict)
+    f1_train = metrics.f1_score(y_train,y_train_predict)
+    print("Acurácia Treino:", acc_train)
+    print("AUC Treino:",auc_train)
+    print("Recall treino:", recall_train)
+    print("F1-Score:",f1_train)
+    print("\nReport:")
+    print(metrics.classification_report(y_train, y_train_predict))
+
+    y_test_predict = model_pipeline.predict(X_test[best_features])
+    y_test_proba = model_pipeline.predict_proba(X_test[best_features])[:,1]
+
+    acc_test = metrics.accuracy_score(y_test, y_test_predict)
+    auc_test = metrics.roc_auc_score(y_test,y_test_proba)
+    roc_test = metrics.roc_curve(y_test, y_test_proba)
+    recall_test = metrics.recall_score(y_test,y_test_predict)
+    f1_test = metrics.f1_score(y_test,y_test_predict)
+    print("Acurácia Teste:", acc_test)
+    print("AUC Teste:",auc_test)
+    print("Recall Teste:", recall_test)
+    print("F1-Score:",f1_test)
+    print("\nReport:")
+    print(metrics.classification_report(y_test, y_test_predict))
+
+    mlflow.log_metrics({
+        "acc_train":acc_train,
+        "auc_train":auc_train,
+        "acc_test": acc_test,
+        "auc_test": auc_test,
+        "recall_train": recall_train,
+        "recall_test":recall_test,
+        "f1_train":f1_train,
+        "f1_test":f1_test
+    })
+# %%
+plt.plot(roc_train[0],roc_train[1])
+plt.plot(roc_test[0],roc_test[1])
+plt.grid(True)
+plt.title("Curva ROC")
+plt.legend([
+    f"Treino: {100*auc_train:.2f}",
+    f"Teste: {100*auc_test:.2f}"
+])
 # %%
 # Export
-joblib.dump(pipeline_reg, "..\models\pipeline_churn_reg.joblib")
-print("\n✓ Pipeline Regressão Logística salvo em: ..\models\pipeline_churn_reg.joblib")
+joblib.dump(model_pipeline, "..\models\model_pipeline.joblib")
+print("\n✓ Pipeline Regressão Logística salvo em: ..\models\model_pipeline.joblib")
 # %%
