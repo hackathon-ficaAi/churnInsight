@@ -60,10 +60,7 @@ churn_bancos/
 Para fazer a comunicação com o back-end no projeto foi utilizado FastAPI, um moderno e rápido (alta performance) framework web para construção de APIs com Python, baseado nos type hints padrões do Python.
 
 ### Executando a API com Docker
-O projeto suporta múltiplos datasets (ex: music_streaming, churn_bancos),
-cada um com sua própria API e modelo treinado.
-
-Cada pasta contém:
+Na pasta contém:
 
 - um Dockerfile
 
@@ -75,7 +72,7 @@ Estando na pasta raiz `churnInsight`, escolha a pasta do dataset desejado como c
 
 *Exemplo*: `churn_bancos`
 ```bash
-docker build --no-cache -t churn-ml-api ./churn_bancos
+docker build --no-cache -t churn-ml-api .
 ```
 
 Após isso basta executar o container com:
