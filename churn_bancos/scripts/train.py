@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn import model_selection, tree, linear_model, naive_bayes, ensemble, metrics, pipeline
+from xgboost import XGBClassifier
 from feature_engine import encoding, discretisation, outliers, transformation
 import joblib
 # %%
@@ -187,7 +188,7 @@ best_features = best_features_cat + best_features_num
 best_features
 # %%
 # MODIFY
-tree_discretiziation = discretisation.DecisionTreeDiscretiser(
+tree_discretization = discretisation.DecisionTreeDiscretiser(
     variables=best_features_num,
     regression=False,
     bin_output='bin_number',
@@ -210,10 +211,12 @@ log1p = transformation.LogCpTransformer(variables=['saldo'],C=1)
 #                                      random_state=42)
 #model = naive_bayes.BernoulliNB()
 
-model = ensemble.RandomForestClassifier(random_state=42,
-                                        n_jobs=2
-                                        )
+#model = ensemble.RandomForestClassifier(random_state=42,
+#                                        n_jobs=2
+#                                        )
 # model = ensemble.AdaBoostClassifier(random_state=42)
+
+model = XGBClassifier(random_state = 42)
 
 params = {
     "n_estimators":[50,100,200,500],
@@ -224,13 +227,19 @@ params_rf = {
     "n_estimators":[100,200,500,1000],
     "criterion": ['gini', 'entropy', 'log_loss'],
     "min_samples_leaf": [15,20,25,30,40,50],
-    "max_depth": [10,15,20],
+    "max_depth": [3,6,10,15,20],
     "class_weight":['balanced','balanced_subsample']
 }
 
+params_xgb = {
+    "n_estimators":[50,100,200,500,1000],
+    "max_depth": [3,5,10,15,20],
+    "learning_rate":[0.01,0.02,0.05,0.10,0.15,0.20,0.30]
+}
+
 grid = model_selection.GridSearchCV(model, 
-                                    params_rf, 
-                                    cv=3, 
+                                    params_xgb, 
+                                    cv=model_selection.StratifiedKFold(n_splits=5), 
                                     scoring='recall',
                                     verbose=4,
                                     error_score='raise')
@@ -238,7 +247,7 @@ grid = model_selection.GridSearchCV(model,
 model_pipeline = pipeline.Pipeline(
     steps=[
         ('log', log1p),
-        ('Discretizar',tree_discretiziation),
+        ('Discretizar',tree_discretization),
         ('OneHot',onehot),
         ('Grid',grid)
     ]
@@ -265,7 +274,7 @@ with mlflow.start_run(run_name=model.__str__()):
     recall_train = metrics.recall_score(y_train,y_train_predict)
     f1_train = metrics.f1_score(y_train,y_train_predict)
     print("Acurácia Treino:", acc_train)
-    print("AUC Teste:",auc_train)
+    print("AUC Treino:",auc_train)
     print("Recall treino:", recall_train)
     print("F1-Score:",f1_train)
     print("\nReport:")
