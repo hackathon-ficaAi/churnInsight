@@ -66,8 +66,7 @@ Este repositório é organizado de forma modular.
 Cada parte do projeto possui sua própria documentação detalhada.
 
 - 📊 **Datasets e APIs**
-  - [`churn_bancos/README.md`](./churn_bancos/README.md) — Caso de churn bancário
-  - [`music_streaming/README.md`](./music_streaming/README.md) — Caso de churn em streaming
+  - [`churn_bancos/README.md`](./README_bancos.md) — Caso de churn bancário
 
 - 🤖 **Modelos de Machine Learning**
   - [`scripts/README.md`](./scripts/README.md) — Metodologia SEMMA, treino, validação e pipelines
