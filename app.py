@@ -8,7 +8,7 @@ from pathlib import Path
 # Caminhos
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "models" / "pipeline_reg.joblib"
+MODEL_PATH = BASE_DIR / "models" / "model_pipeline.joblib"
 SCHEMA_PATH = BASE_DIR / "schema" / "schema_pipeline.json"
 
 # Carrega schema
@@ -63,7 +63,7 @@ def predict(data: ClientInput):
     # aplicando o modelo
     proba = pipeline.predict_proba(X)[0,1]
 
-    if int(proba >= 0.8):
+    if int(proba >= 0.7):
         return {
             "probabilidade_churn": float(proba),
             "previsao_churn": "Chance alta de cancelamento"
