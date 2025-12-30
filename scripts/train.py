@@ -5,11 +5,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn import model_selection, tree, linear_model, naive_bayes, ensemble, metrics, pipeline
 from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
 from feature_engine import encoding, discretisation, outliers, transformation
 import joblib
 # %%
 # 
-url = 'https://raw.githubusercontent.com/hackathon-ficaAi/churnInsight/refs/heads/main/churn_bancos/data/churn_bancos.csv'
+url = 'https://raw.githubusercontent.com/hackathon-ficaAi/churnInsight/refs/heads/main/data/churn_treino.csv'
 df = pd.read_csv(url)
 df.head()
 # %%
@@ -51,41 +52,6 @@ sumario['diff_abs'] = sumario[0] - sumario[1]
 sumario['diff_rel'] = sumario[0] / sumario[1]
 sumario.sort_values(by=['diff_rel'], ascending=False)
 # %%
-arvore = tree.DecisionTreeClassifier(random_state=42)
-arvore.fit(X_train[feat_num],y_train)
-
-plt.figure(dpi=700)
-tree.plot_tree(arvore, feature_names=X_train[feat_num].columns,
-               filled=True,
-               class_names= [str(i) for i in arvore.classes_])
-# %%
-
-pd.Series(arvore.feature_importances_, index=X_train[feat_num].columns).sort_values(ascending=False)
-# %%
-pd.crosstab(df['reclamou'], df['churned'], normalize='index')
-
-# %%
-churn_silencioso = df[(df['churned'] == 1) & (df['reclamou'] == 0)]
-df.groupby(['reclamou', 'churned'])[feat_num].mean()
-
-# %%
-# Removendo a coluna "reclamou"
-X_train.drop(columns=['reclamou'], inplace=True)
-# %%
-# Refazendo as Análises
-df_analise = X_train.copy()
-df_analise[target] = y_train
-df_analise
-
-feat_num = X_train.select_dtypes(['number']).columns
-
-sumario = df_analise.groupby(by=target)[feat_num].agg(["mean","median"]).T
-sumario
-# %%
-sumario['diff_abs'] = sumario[0] - sumario[1]
-sumario['diff_rel'] = sumario[0] / sumario[1]
-sumario.sort_values(by=['diff_rel'], ascending=False)
-# %%
 arvore = tree.DecisionTreeClassifier(random_state=42, max_depth=5)
 arvore.fit(X_train[feat_num],y_train)
 
@@ -94,7 +60,10 @@ tree.plot_tree(arvore, feature_names=X_train[feat_num].columns,
                filled=True,
                class_names= [str(i) for i in arvore.classes_])
 # %%
+# Olhando para a importância de cada variável
+pd.Series(arvore.feature_importances_, index=X_train[feat_num].columns).sort_values(ascending=False)
 
+# %%
 feature_importances = (pd.Series(arvore.feature_importances_, index=X_train[feat_num].columns)
                        .sort_values(ascending=False)
                        .reset_index())
@@ -119,8 +88,6 @@ def resumo_categorica(var,df=df_analise_cat, target=target):
 resumo_categorica('pais')
 # %%
 resumo_categorica('genero')
-# %%
-resumo_categorica('tipo_cartao')
 # %%
 from scipy.stats import chi2_contingency
 
@@ -170,7 +137,7 @@ imp_cat = (
 
 imp_cat_grouped = (
     imp_cat
-    .groupby(lambda x: x.rsplit('_',1)[0])
+    .groupby(lambda x: x.rsplit('_')[0])
     .sum()
     .sort_values(ascending=False)
     .reset_index()
@@ -178,14 +145,15 @@ imp_cat_grouped = (
 
 imp_cat_grouped['acumulada'] = imp_cat_grouped[0].cumsum()
 imp_cat_grouped
+
 # %%
 # Selecionando as melhores features das categóricas e das numéricas
-best_features_cat = (imp_cat_grouped[imp_cat_grouped['acumulada'] < 0.98]['index']
+best_features_cat = (imp_cat_grouped['index']
                      .tolist())
-best_features_num = (feature_importances[feature_importances[0] > 0.01]['index']
+best_features_num = (feature_importances[feature_importances[0] > 0]['index']
                      .tolist())
 best_features = best_features_cat + best_features_num
-best_features
+best_features 
 # %%
 # MODIFY
 tree_discretization = discretisation.DecisionTreeDiscretiser(
@@ -205,22 +173,11 @@ onehot = encoding.OneHotEncoder(
 # log1p
 log1p = transformation.LogCpTransformer(variables=['saldo'],C=1)
 # %%
-# MODEL -- Regressão Logistica
+# MODEL -- 
 
-#model = linear_model.LogisticRegression(penalty=None,
-#                                      random_state=42)
-#model = naive_bayes.BernoulliNB()
-
-#model = ensemble.RandomForestClassifier(random_state=42,
-#                                        n_jobs=2
-#                                        )
-# model = ensemble.AdaBoostClassifier(random_state=42)
-
-model = XGBClassifier(random_state = 42)
-
-params = {
-    "n_estimators":[50,100,200,500],
-    "learning_rate":[0.01,0.02,0.05,0.10,0.20,0.30]
+params_lr = {
+    "max_iter":[50,100,200,500],
+    "solver":['lbfgs', 'newton-cg', 'newton-cholesky', 'sag', 'saga']
 }
 
 params_rf = {
@@ -231,80 +188,130 @@ params_rf = {
     "class_weight":['balanced','balanced_subsample']
 }
 
+params_ada = {
+    "n_estimators":[50,100,200,500],
+    "learning_rate":[0.01,0.02,0.05,0.10,0.20,0.30]
+}
+
 params_xgb = {
     "n_estimators":[50,100,200,500,1000],
     "max_depth": [3,5,10,15,20],
     "learning_rate":[0.01,0.02,0.05,0.10,0.15,0.20,0.30]
 }
 
-grid = model_selection.GridSearchCV(model, 
-                                    params_xgb, 
-                                    cv=model_selection.StratifiedKFold(n_splits=5), 
-                                    scoring='recall',
-                                    verbose=4,
-                                    error_score='raise')
+params_lgbm = {
+    "learning_rate":[0.01,0.02,0.05,0.10,0.20,0.30],
+    "n_estimators":[50,100,200,500,1000]
+}
 
-model_pipeline = pipeline.Pipeline(
-    steps=[
-        ('log', log1p),
-        ('Discretizar',tree_discretization),
-        ('OneHot',onehot),
-        ('Grid',grid)
-    ]
-)
+models = [
+    (
+        linear_model.LogisticRegression(
+            class_weight='balanced',
+            random_state=42
+        ),
+        params_lr
+    ),
+    (
+        ensemble.RandomForestClassifier(
+            random_state=42,
+            n_jobs=-1
+        ),
+        params_rf
+    ),
+    (
+        ensemble.AdaBoostClassifier(
+            random_state=42
+        ),
+        params_ada
+    ),
+    (
+        XGBClassifier(
+            random_state=42
+        ),
+        params_xgb
+    ),
+    (
+        LGBMClassifier(
+            random_state=42,
+            class_weight='balanced'
+        ),
+        params_lgbm
+    )
+]
+
+#model = naive_bayes.BernoulliNB()
+
+for model, param in models:
+    grid = model_selection.GridSearchCV(model, 
+                                        param, 
+                                        cv=model_selection.StratifiedKFold(n_splits=5), 
+                                        scoring='recall',
+                                        verbose=4,
+                                        error_score='raise')
+
+    model_pipeline = pipeline.Pipeline(
+        steps=[
+            ('log', log1p),
+            ('Discretizar',tree_discretization),
+            ('OneHot',onehot),
+            ('Grid',grid)
+        ]
+    )
 
 
-import mlflow
+    import mlflow
 
-mlflow.set_tracking_uri("http://127.0.0.1:5000/")
-mlflow.set_experiment(experiment_id=1)
+    mlflow.set_tracking_uri("http://127.0.0.1:5000/")
+    mlflow.set_experiment(experiment_id=1)
 
-with mlflow.start_run(run_name=model.__str__()):
-    mlflow.sklearn.autolog()
+    with mlflow.start_run(run_name=model.__str__()):
+        mlflow.sklearn.autolog()
 
-    model_pipeline.fit(X_train[best_features],y_train)
+        model_pipeline.fit(X_train[best_features],y_train)
 
-    y_train_predict = model_pipeline.predict(X_train[best_features])
-    y_train_proba = model_pipeline.predict_proba(X_train[best_features])[:,1]
+        y_train_predict = model_pipeline.predict(X_train[best_features])
+        y_train_proba = model_pipeline.predict_proba(X_train[best_features])[:,1]
 
-    # ASSESS
-    acc_train = metrics.accuracy_score(y_train, y_train_predict)
-    auc_train = metrics.roc_auc_score(y_train,y_train_proba)
-    roc_train = metrics.roc_curve(y_train, y_train_proba)
-    recall_train = metrics.recall_score(y_train,y_train_predict)
-    f1_train = metrics.f1_score(y_train,y_train_predict)
-    print("Acurácia Treino:", acc_train)
-    print("AUC Treino:",auc_train)
-    print("Recall treino:", recall_train)
-    print("F1-Score:",f1_train)
-    print("\nReport:")
-    print(metrics.classification_report(y_train, y_train_predict))
+        # ASSESS
+        acc_train = metrics.accuracy_score(y_train, y_train_predict)
+        auc_train = metrics.roc_auc_score(y_train,y_train_proba)
+        roc_train = metrics.roc_curve(y_train, y_train_proba)
+        recall_train = metrics.recall_score(y_train,y_train_predict)
+        f1_train = metrics.f1_score(y_train,y_train_predict)
+        print("Acurácia Treino:", acc_train)
+        print("AUC Treino:",auc_train)
+        print("Recall treino:", recall_train)
+        print("F1-Score:",f1_train)
+        print("\nReport:")
+        print(metrics.classification_report(y_train, y_train_predict))
 
-    y_test_predict = model_pipeline.predict(X_test[best_features])
-    y_test_proba = model_pipeline.predict_proba(X_test[best_features])[:,1]
+        y_test_predict = model_pipeline.predict(X_test[best_features])
+        y_test_proba = model_pipeline.predict_proba(X_test[best_features])[:,1]
 
-    acc_test = metrics.accuracy_score(y_test, y_test_predict)
-    auc_test = metrics.roc_auc_score(y_test,y_test_proba)
-    roc_test = metrics.roc_curve(y_test, y_test_proba)
-    recall_test = metrics.recall_score(y_test,y_test_predict)
-    f1_test = metrics.f1_score(y_test,y_test_predict)
-    print("Acurácia Teste:", acc_test)
-    print("AUC Teste:",auc_test)
-    print("Recall Teste:", recall_test)
-    print("F1-Score:",f1_test)
-    print("\nReport:")
-    print(metrics.classification_report(y_test, y_test_predict))
+        acc_test = metrics.accuracy_score(y_test, y_test_predict)
+        auc_test = metrics.roc_auc_score(y_test,y_test_proba)
+        roc_test = metrics.roc_curve(y_test, y_test_proba)
+        recall_test = metrics.recall_score(y_test,y_test_predict)
+        f1_test = metrics.f1_score(y_test,y_test_predict)
+        print("Acurácia Teste:", acc_test)
+        print("AUC Teste:",auc_test)
+        print("Recall Teste:", recall_test)
+        print("F1-Score:",f1_test)
+        print("\nReport:")
+        print(metrics.classification_report(y_test, y_test_predict))
 
-    mlflow.log_metrics({
-        "acc_train":acc_train,
-        "auc_train":auc_train,
-        "acc_test": acc_test,
-        "auc_test": auc_test,
-        "recall_train": recall_train,
-        "recall_test":recall_test,
-        "f1_train":f1_train,
-        "f1_test":f1_test
-    })
+        mlflow.log_metrics({
+            "acc_train":acc_train,
+            "auc_train":auc_train,
+            "acc_test": acc_test,
+            "auc_test": auc_test,
+            "recall_train": recall_train,
+            "recall_test":recall_test,
+            "f1_train":f1_train,
+            "f1_test":f1_test
+        })
+
 # %%
 plt.plot(roc_train[0],roc_train[1])
 plt.plot(roc_test[0],roc_test[1])

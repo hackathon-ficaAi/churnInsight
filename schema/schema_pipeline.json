@@ -1,5 +1,5 @@
 {
-    "model_name":"churn_reg",
+    "model_name":"model_pipeline",
     "model_version": "1.0.0",
     "target": "churned",
     "required_features":[
