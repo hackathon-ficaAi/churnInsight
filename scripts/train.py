@@ -1,4 +1,8 @@
 # %%
+from utils.path import setup_project_root
+setup_project_root(levels_up=1)
+from utils.feature_engineering import FeatureEngineeringTransformer
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -183,9 +187,9 @@ params_lr = {
 params_rf = {
     "n_estimators":[100,200,500,1000],
     "criterion": ['gini', 'entropy', 'log_loss'],
-    "min_samples_leaf": [15,20,25,30,40,50],
-    "max_depth": [3,6,10,15,20],
-    "class_weight":['balanced','balanced_subsample']
+#    "min_samples_leaf": [15,20,25,30,40,50],
+#    "max_depth": [3,6,10,15,20],
+#    "class_weight":['balanced','balanced_subsample']
 }
 
 params_ada = {
@@ -215,6 +219,9 @@ models = [
     (
         ensemble.RandomForestClassifier(
             random_state=42,
+            max_depth=None,
+            min_samples_split=10,
+            class_weight="balanced",
             n_jobs=-1
         ),
         params_rf
@@ -242,6 +249,8 @@ models = [
 
 #model = naive_bayes.BernoulliNB()
 
+fe = FeatureEngineeringTransformer()
+
 for model, param in models:
     grid = model_selection.GridSearchCV(model, 
                                         param, 
@@ -252,6 +261,7 @@ for model, param in models:
 
     model_pipeline = pipeline.Pipeline(
         steps=[
+            ('feature_engineering', fe),
             ('log', log1p),
             ('Discretizar',tree_discretization),
             ('OneHot',onehot),
