@@ -1,5 +1,6 @@
 __pycache__/
 traducao.py 
 mlflow.db
-mlartifacts
+mlartifacts/
+mlruns/
 amostra.json
