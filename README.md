@@ -1,6 +1,6 @@
 
 <h1 align="center">
-  ChurnInsight — Churn Prediction API
+  Microsserviço API ChurnInsight- Churn Prediction 
 </h1>
 
 <div align="center">
@@ -13,42 +13,75 @@
 
 </div>
 
-## Previsão de Cancelamento de Clientes
-Descrição do projeto
+## Visão geral
 
-O desafio do ChurnInsight consiste em criar uma solução que preveja se um cliente está propenso a cancelar um serviço (churn).
+Este módulo do projeto **ChurnInsight** implementa um caso de uso de **previsão de churn no setor bancário**.
 
-O objetivo é que o time de Data Science desenvolva um modelo preditivo e que o time de Back-end construa uma API para disponibilizar essa previsão a outros sistemas, permitindo que o negócio aja antes que o cliente decida sair.
+O objetivo é prever se um cliente irá cancelar o relacionamento com o banco (`churned`), utilizando dados demográficos e comportamentais, disponibilizando essa previsão via uma **API FastAPI** containerizada com Docker.
 
-Exemplo: uma fintech quer saber, com base nos hábitos de uso e histórico de pagamento, quais clientes têm alta probabilidade de evasão. Com essa informação, o time de marketing pode oferecer serviços personalizados e o time de suporte pode agir preventivamente.
+---
 
-## Necessidade do cliente (explicação não técnica)
+## Estrutura do Projeto
 
-Toda empresa que vende por assinatura ou contrato recorrente sofre com cancelamentos. Manter clientes fiéis é mais barato do que conquistar novos.
+```text
+churn_bancos/
+├── app.py              # Ponto de entrada da API (FastAPI)
+├── config.py           # Configurações globais
+├── Dockerfile          # Build da imagem Docker
+├── requirements.txt    # Dependências do projeto
+├── data/               # Dados de treino e teste (.csv)
+├── models/             # Modelos treinados (.joblib)
+├── schemas/            # Esquema pipeline em json
+├── scripts/            # Scripts de treino e predição
+└── utils/              # Funções auxiliares (configurações de importação, features)
 
-O cliente (empresa) quer prever antecipadamente quem está prestes a cancelar, para poder agir e reter essas pessoas.
+```
 
-A solução esperada deve ajudar a:
+## FastAPI e como executar
 
-identificar clientes com risco de churn (cancelamento);
+Para fazer a comunicação com o back-end no projeto foi utilizado FastAPI, um moderno e rápido (alta performance) framework web para construção de APIs com Python, baseado nos type hints padrões do Python.
 
-priorizar ações de retenção (ofertas, contatos, bônus);
+### Executando a API com Docker
 
-medir o impacto dessas ações ao longo do tempo.
+A API estará disponível em:
 
-## Validação de mercado
+Swagger
 
-A previsão de churn é uma das aplicações mais comuns e valiosas da ciência de dados em negócios modernos.
+```text
+http://localhost:8000/docs
+```
+Documentação
 
-Empresas de telecom, bancos digitais, academias, plataformas de streaming e provedores de software usam modelos de churn para:
+```text
+http://localhost:8000/redoc
+```
+### Exemplo de Requisição via POST
+Endpoint:
+```text
+POST /predict
+```
 
-reduzir perdas financeiras;
+Payload de exemplo - Entrada de dados:
+```json
+{
+  "pais": "France",
+  "genero": "Male",
+  "idade": 45,
+  "saldo": 75432.50,
+  "num_produtos": 2,
+  "membro_ativo": 1,
+  "salario_estimado": 62000.00
+}
+```
+Saída
 
-entender padrões de comportamento de clientes;
+```json
+{
+  "probabilidade_churn": 0.40,
+  "previsao_churn": "Chance baixa de cancelamento"
+}
 
-aumentar o tempo médio de relacionamento (lifetime value).
-
-Mesmo modelos simples já trazem valor, pois ajudam as empresas a direcionar esforços onde há maior risco de perda.
+```
 
 ## Tecnologias utilizadas
 
@@ -59,18 +92,6 @@ Mesmo modelos simples já trazem valor, pois ajudam as empresas a direcionar esf
 - **Pandas / NumPy** — Manipulação e análise de dados
 - **Matplotlib / Seaborn** — Gerar gráficos para visualização e análise de dados
 - **Feature-engine** — Engenharia de features e pré-processamento
+- **Mlflow** — Ferramenta para Gerenciar o Ciclo de Vida do Aprendizado de Máquina
 
-## Documentação do projeto
-
-Este repositório é organizado de forma modular.  
-Cada parte do projeto possui sua própria documentação detalhada.
-
-- 📊 **Datasets e APIs**
-  - [`churn_bancos/README.md`](./README_bancos.md) — Caso de churn bancário
-
-- 🤖 **Modelos de Machine Learning**
-  - [`scripts/README.md`](./scripts/README.md) — Metodologia SEMMA, treino, validação e pipelines
-
-- 🧪 **Análises exploratórias**
-  - Documentadas diretamente nos notebooks em `notebooks/`
 
