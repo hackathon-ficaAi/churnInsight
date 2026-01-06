@@ -9,12 +9,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copia código da aplicação
 COPY app.py .
-COPY config.py .
 
 # Copia pastas necessárias
 COPY models/ ./models/
 COPY schema/ ./schema/
-COPY services/ ./services/
 COPY utils/ ./utils/
 
 EXPOSE 8000

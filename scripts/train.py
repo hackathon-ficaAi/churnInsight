@@ -1,8 +1,6 @@
 # %%
-from utils.path import setup_project_root
-setup_project_root(levels_up=1)
 from utils.feature_engineering import FeatureEngineeringTransformer
-
+# %%
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -246,7 +244,7 @@ models = [
         params_lgbm
     )
 ]
-
+# %%
 #model = naive_bayes.BernoulliNB()
 
 fe = FeatureEngineeringTransformer()
