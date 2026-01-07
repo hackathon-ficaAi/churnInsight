@@ -19,6 +19,8 @@ Este módulo do projeto **ChurnInsight** implementa um caso de uso de **previsã
 
 O objetivo é prever se um cliente irá cancelar o relacionamento com o banco (`churned`), utilizando dados demográficos e comportamentais, disponibilizando essa previsão via uma **API FastAPI** containerizada com Docker.
 
+O serviço está **containerizado** e implantado na **Oracle Cloud Infrastructure (OCI)**, integrando-se ao Backend Java através de uma rede Docker interna.
+
 ---
 
 ## Estrutura do Projeto
